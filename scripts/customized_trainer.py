@@ -40,7 +40,8 @@ class CustomEvalSaveCallback(TrainerCallback):
         submission_dir: str,
         output_dir: str,
         original_model_name: str,
-        max_steps: int = -1
+        max_steps: int = -1,
+        epoch_steps: int = 0
     ):
         self.function_when_to_evaluate = function_when_to_evaluate
         self.submission_dir = submission_dir
@@ -50,6 +51,7 @@ class CustomEvalSaveCallback(TrainerCallback):
         self.output_dir = output_dir
         self.original_model_name = original_model_name
         self.max_steps = max_steps
+        self.epoch_steps = epoch_steps
         self.has_checkpoint = False
         self.save_only = False
         
@@ -65,13 +67,154 @@ class CustomEvalSaveCallback(TrainerCallback):
             # do not allow the pod to be stopped by any reason 
                 # first check if there is at least one checkpoint or not 
             print(f"Evaluating the model at step: {state.global_step} the reason: {when_to_eval['reason']}", flush=True)
-            control.should_evaluate = True
-            control.should_save = True
+            control.should_evaluate = False
+            control.should_save = False
             if when_to_eval["reason"] == "end_time":
+                control.should_training_stop = True
                 if not self.has_checkpoint: # if there is no checkpoint, we just save the model, do not evaluate
                     print(f"No checkpoint found, just save the model at step: {state.global_step}", flush=True)
                     control.should_evaluate = False
+                    control.should_save = True
                     self.save_only = True
+                    
+            elif when_to_eval["reason"] == "epoch":
+                control.should_evaluate = False
+                control.should_save = True
+                self.save_only = True
+
+            elif when_to_eval["reason"] == "periodic":
+                control.should_evaluate = False
+                control.should_save = True
+                self.save_only = True
+
+                # if state.global_step % 60 == 0:
+                #     control.should_evaluate = False
+                #     control.should_save = True
+                #     self.save_only = True
+                
+                # log_path = os.path.join(self.output_dir, "log_history.json")
+                # log_avg = state.log_history[-10:]
+
+                # # Collect all logged losses
+                # losses = [
+                #     log["loss"] for log in log_avg if "loss" in log
+                # ]
+
+                # if losses:
+                #     # print(f"\nlog_history: {log_avg}", flush=True)
+
+                #     avg_loss = sum(losses) / len(losses)
+                #     print(f"\nAverage loss: {avg_loss}", flush=True)
+                #     print(f"len history: {len(log_avg)}", flush=True)
+
+                #     # control.should_evaluate = False
+                #     # control.should_save = True
+                #     # self.save_only = True
+
+                #     optimizer = kwargs["optimizer"]
+                #     scheduler = kwargs.get("lr_scheduler", None)
+
+                #     if os.path.isfile(log_path):
+                #         with open(log_path, "r") as file:
+                #             data_history = json.load(file)
+
+                #             last_losses = [
+                #                 log["loss"] for log in data_history if "loss" in log
+                #             ]
+
+                #             if last_losses:
+                #                 last_loss = sum(last_losses) / len(last_losses)
+                #                 print(f"Last loss: {last_loss}", flush=True)
+
+                #                 # control.should_evaluate = False
+                #                 # control.should_save = True
+                #                 # self.save_only = True
+
+                #                 if last_loss*1.0 >= avg_loss:
+                #                     print(f"Add lr", flush=True)
+
+                #                     for g in optimizer.param_groups:
+                #                         print(f"lr: {g['lr']}", flush=True)
+                #                         # g["lr"] *= 1.03
+                #                         g["lr"] += 2*0.000001
+
+                #                     with open(log_path, "w") as f:
+                #                         log_dummy = state.log_history[-10:]
+                #                         json.dump(log_dummy, f, ensure_ascii=False)
+
+                #                     control.should_evaluate = False
+                #                     control.should_save = False
+                #                     self.save_only = False
+
+                #                 elif last_loss*1.2 < avg_loss:
+                #                     print(f"Reset lr", flush=True)
+                #                     for g in optimizer.param_groups:
+                #                         print(f"lr: {g['lr']}", flush=True)
+                #                         # g["lr"] *= 1.03
+                #                         # g["lr"] += 2*0.000001
+                #                         g["lr"] = 0.000005
+
+                #                     with open(log_path, "w") as f:
+                #                         log_dummy = state.log_history[-10:]
+                #                         json.dump(log_dummy, f, ensure_ascii=False)
+
+                #                     control.should_evaluate = False
+                #                     control.should_save = False
+                #                     self.save_only = False
+
+                #                 elif last_loss < avg_loss:
+                #                     print(f"Reduce lr", flush=True)
+
+                #                     for g in optimizer.param_groups:
+                #                         print(f"lr: {g['lr']}", flush=True)
+                #                         # g["lr"] *= 0.99
+                #                         g["lr"] -= 1*0.000001
+
+                #                     control.should_evaluate = False
+                #                     control.should_save = False
+                #                     self.save_only = False
+
+                #             else:
+                #                 print("No losses found in log_history", flush=True)
+
+                #     else:
+                #         print(f"New loss: {avg_loss}", flush=True)
+
+                #         # print(f"log_history new: {log_path}", flush=True)
+
+                #         for g in optimizer.param_groups:
+                #             print(f"lr: {g['lr']}", flush=True)
+                #             if g["lr"] < 0.0001:
+                #                 # g["lr"] *= 1.03
+                #                 g["lr"] += 2*0.000001
+                #             else:
+                #                 g["lr"] *= 0.5
+
+                #         with open(log_path, "w") as f:
+                #             log_dummy = state.log_history[-10:]
+                #             json.dump(log_dummy, f, ensure_ascii=False)
+
+                #         control.should_evaluate = False
+                #         control.should_save = False
+                #         self.save_only = False
+
+                #     # if state.global_step % int(self.epoch_steps/2) == 0:
+                #     if state.global_step % 60 == 0:
+                #         control.should_evaluate = True
+                #         control.should_save = True
+                #         # self.save_only = True
+
+                #     new_lr = optimizer.param_groups[0]["lr"]
+                #     print(f"lr new: {new_lr}", flush=True)
+
+                #     if scheduler is not None:
+                #         # overwrite all base_lrs
+                #         scheduler.base_lrs = [new_lr for _ in scheduler.base_lrs]
+
+                # else:
+                #     print("No losses found in log_history", flush=True)
+
+
         return control
 
 
@@ -84,6 +227,10 @@ class CustomEvalSaveCallback(TrainerCallback):
         if state.global_step < 2:
             return 
         print(f"GO INTO CUSTOMIZED EVALUATE AT STEP: {state.global_step}", flush=True)
+
+        # optimizer = kwargs["optimizer"]
+        # scheduler = kwargs.get("lr_scheduler", None)
+
         if self.best_checkpoint_info is None or eval_loss < self.best_checkpoint_info["loss"]:
             print(f"Updating the best checkpoint info at step: {state.global_step} with eval_loss: {eval_loss}", flush=True)
             self.best_checkpoint_info = {
@@ -91,10 +238,42 @@ class CustomEvalSaveCallback(TrainerCallback):
                 "step": state.global_step
             }
             self.update_best_checkpoint = True
+
+            # print(f"Add lr", flush=True)
+
+            # for g in optimizer.param_groups:
+            #     print(f"lr: {g['lr']}", flush=True)
+            #     # g["lr"] *= 1.03
+            #     g["lr"] += 2*0.000001
+
+        # elif eval_loss > self.best_checkpoint_info["loss"]*1.2:
+        #     print(f"Reset lr", flush=True)
+            
+        #     for g in optimizer.param_groups:
+        #         print(f"lr: {g['lr']}", flush=True)
+        #         # g["lr"] *= 1.03
+        #         # g["lr"] += 2*0.000001
+        #         g["lr"] = 0.000005
+
         else:
             if self.best_checkpoint_info is not None:
                 print(f" At step: {state.global_step} The eval_loss: {eval_loss} is not smaller than the current best eval_loss: {self.best_checkpoint_info['loss']}, update_best_checkpoint={self.update_best_checkpoint}", flush=True)
-            
+
+                # print(f"Reduce lr", flush=True)
+
+                # for g in optimizer.param_groups:
+                #     print(f"lr: {g['lr']}", flush=True)
+                #     # g["lr"] *= 0.99
+                #     g["lr"] -= 1*0.000001
+
+
+        # new_lr = optimizer.param_groups[0]["lr"]
+        # print(f"lr new: {new_lr}", flush=True)
+
+        # if scheduler is not None:
+        #     # overwrite all base_lrs
+        #     scheduler.base_lrs = [new_lr for _ in scheduler.base_lrs]
+
 
     def on_save(self, args, state: TrainerState, control: TrainerControl, **kwargs):
         
@@ -217,7 +396,7 @@ def set_generation_config(model_name, model):
         if model_name in ERROR_GENERATION_CONFIG_MODELS:
             model.generation_config = GenerationConfig(temperature=None, top_p=None)
     except:
-        print(f"Error setting generation config for model {model_name}")
+        print(f"Error setting generation config for model {model_name}", flush=True)
         pass
 
 
@@ -226,7 +405,7 @@ def resize_if_needed(model_name, model, token_nums):
         if model_name in MIS_MATCH_VOCAB_SIZE_MODELS:
             model.resize_token_embeddings(token_nums)
     except:
-        print(f"Error resizing token embeddings for model {model_name}")
+        print(f"Error resizing token embeddings for model {model_name}", flush=True)
         pass
 
 

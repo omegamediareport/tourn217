@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Standalone script for text model training (InstructText, DPO, and GRPO)
+Standalone script for text model training (InstructText, Chat, DPO, and GRPO)
 """
 
 import argparse
@@ -166,7 +166,7 @@ def main():
     parser.add_argument(
         "--task-type",
         required=True,
-        choices=["InstructTextTask", "DpoTask", "GrpoTask"],
+        choices=["InstructTextTask", "ChatTask", "DpoTask", "GrpoTask"],
         help="Type of task",
     )
     parser.add_argument(
@@ -262,6 +262,7 @@ def main():
         "adjust_batch_size": True,
         "request_path": request_path,
         "max_data_size": args.max_data_size,
+        # "max_data_size": 5000,
         "max_steps": args.max_steps,
         "wandb_log_dir": train_cst.WANDB_LOGS_DIR,
         "min_steps": args.min_steps,
@@ -270,7 +271,7 @@ def main():
         "find_lk_lr": True,
     }
 
-    if args.task_type == TaskType.INSTRUCTTEXTTASK.value:
+    if args.task_type == TaskType.INSTRUCTTEXTTASK.value or args.task_type == TaskType.CHATTASK.value:
         train_info = get_instruct_training_json(train_info)
         tokenize_cmd = (
             f"/workspace/axo_py/bin/python tokenize_instruct.py {request_path}"

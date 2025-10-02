@@ -7,35 +7,27 @@ import tempfile
 from huggingface_hub import HfApi
 from huggingface_hub import hf_hub_download
 from huggingface_hub import snapshot_download
-from transformers import CLIPTokenizer, T5TokenizerFast
+from transformers import CLIPTokenizer
 
 from core.models.utility_models import FileFormat
 from core.models.utility_models import TaskType
 from core.utils import download_s3_file
-import train_cst as cst
-import training_paths as train_paths
-import json 
+from trainer import constants as cst
+import trainer.utils.training_paths as train_paths
+
 
 hf_api = HfApi()
 
 
-async def download_text_dataset(task_id, dataset_url, file_format, dataset_dir, data_size):
+async def download_text_dataset(task_id, dataset_url, file_format, dataset_dir):
     os.makedirs(dataset_dir, exist_ok=True)
 
     if file_format == FileFormat.S3.value:
         input_data_path = train_paths.get_text_dataset_path(task_id)
 
-        # if not os.path.exists(input_data_path):
-        local_path = await download_s3_file(dataset_url)
-        shutil.copy(local_path, input_data_path)
-        if data_size > 0:
-            with open(input_data_path, "r") as f:
-                data = json.load(f)
-                
-            data = data[:data_size]
-            print(f"Truncated dataset to {data_size} samples")
-            with open(input_data_path, "w") as f:
-                json.dump(data, f)
+        if not os.path.exists(input_data_path):
+            local_path = await download_s3_file(dataset_url)
+            shutil.copy(local_path, input_data_path)
 
     elif file_format == FileFormat.HF.value:
         repo_name = dataset_url.replace("/", "--")
@@ -140,7 +132,6 @@ async def main():
     )
     parser.add_argument("--dataset", required=True)
     parser.add_argument("--file-format")
-    parser.add_argument("--num-samples", type=int, default=-1)
     args = parser.parse_args()
 
     dataset_dir = cst.CACHE_DATASETS_DIR
@@ -165,7 +156,7 @@ async def main():
             allow_patterns=["tokenizer_config.json", "spiece.model", "special_tokens_map.json", "config.json"],
         )
     else:
-        dataset_path, _ = await download_text_dataset(args.task_id, args.dataset, args.file_format, dataset_dir, args.num_samples)
+        dataset_path, _ = await download_text_dataset(args.task_id, args.dataset, args.file_format, dataset_dir)
         model_path = await download_axolotl_base_model(args.model, model_dir)
 
     print(f"Model path: {model_path}", flush=True)
