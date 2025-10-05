@@ -78,14 +78,14 @@ class CustomEvalSaveCallback(TrainerCallback):
                     self.save_only = True
                     
             elif when_to_eval["reason"] == "epoch":
-                control.should_evaluate = True
+                control.should_evaluate = False
                 control.should_save = True
-                # self.save_only = True
+                self.save_only = True
 
             elif when_to_eval["reason"] == "periodic":
-                control.should_evaluate = True
+                control.should_evaluate = False
                 control.should_save = True
-                # self.save_only = True
+                self.save_only = True
 
                 # if state.global_step % 60 == 0:
                 #     control.should_evaluate = False
